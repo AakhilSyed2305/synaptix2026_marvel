@@ -92,6 +92,57 @@
 
         window.markAttendance = markAttendance;
     </script>
+
+    <!-- Custom Events & LostFound Script -->
+    <script type="module">
+        import { collection, addDoc, getDocs, query, orderBy, limit, serverTimestamp } from "https://www.gstatic.com/firebasejs/10.9.0/firebase-firestore.js";
+
+        async function fetchEvents() {
+            try {
+                // Fetch events ordered by date.
+                const q = query(collection(window.firebaseDb, "events"), orderBy("Date", "asc"));
+                const querySnapshot = await getDocs(q);
+                const events = [];
+                querySnapshot.forEach((doc) => {
+                    events.push({ id: doc.id, ...doc.data() });
+                });
+                return events;
+            } catch (error) {
+                console.error("Error fetching events from Firebase:", error);
+                return [];
+            }
+        }
+
+        async function addLostFoundItem(itemData) {
+            try {
+                itemData.timestamp = serverTimestamp();
+                await addDoc(collection(window.firebaseDb, "lost_found"), itemData);
+                return true;
+            } catch (error) {
+                console.error("Error adding lost/found item:", error);
+                return false;
+            }
+        }
+
+        async function fetchLostFoundItems() {
+            try {
+                const q = query(collection(window.firebaseDb, "lost_found"), orderBy("timestamp", "desc"), limit(20));
+                const querySnapshot = await getDocs(q);
+                const items = [];
+                querySnapshot.forEach((doc) => {
+                    items.push({ id: doc.id, ...doc.data() });
+                });
+                return items;
+            } catch (error) {
+                console.error("Error fetching lost/found items:", error);
+                return [];
+            }
+        }
+
+        window.fetchEvents = fetchEvents;
+        window.addLostFoundItem = addLostFoundItem;
+        window.fetchLostFoundItems = fetchLostFoundItems;
+    </script>
 </head>
 
 <body class="bg-brand-light text-slate-200 font-sans min-h-screen flex flex-col relative overflow-x-hidden">
@@ -257,19 +308,10 @@
         </section>
 
 
-        <!-- Student Dashboard -->
         <section id="student-dashboard" class="hidden space-y-10 animate-fade-in relative z-10">
-            <div
-                class="flex flex-col sm:flex-row justify-between items-start sm:items-center border-b border-white/10 pb-4">
-                <h2
-                    class="text-4xl font-bold bg-clip-text text-transparent bg-gradient-to-r from-blue-400 to-purple-400">
-                    Student Dashboard
-                </h2>
-                <button type="button" onclick="app.handleMarkAttendance()"
-                    class="mt-4 sm:mt-0 bg-green-500/20 text-green-400 hover:bg-green-500 hover:text-white border border-green-500/30 px-6 py-2.5 rounded-xl font-bold transition-colors shadow-[0_0_15px_rgba(34,197,94,0.3)]">
-                    ✅ Check-In Today
-                </button>
-            </div>
+            <h2
+                class="text-4xl font-bold bg-clip-text text-transparent bg-gradient-to-r from-blue-400 to-purple-400 border-b border-white/10 pb-4">
+                Student Dashboard</h2>
 
             <div class="grid grid-cols-1 lg:grid-cols-2 gap-8">
                 <!-- Leave Planner -->
@@ -418,6 +460,22 @@
                             class="w-full bg-blue-600/80 hover:bg-blue-500 text-white font-bold py-3.5 rounded-xl transition-colors border border-blue-400/30 shadow-[0_0_15px_rgba(59,130,246,0.3)] mt-2">Update
                             Database</button>
                     </form>
+                </div>
+
+                <!-- Single Student Check-In (Firebase) -->
+                <div class="glass-panel rounded-3xl p-8 border-t-[4px] border-t-green-500 md:col-span-2 lg:col-span-1">
+                    <h3 class="text-2xl font-bold mb-6 flex items-center gap-3 text-slate-100"><span
+                            class="text-3xl bg-green-500/20 p-2 rounded-xl text-green-400">✅</span> Live Check-In</h3>
+                    <p class="text-slate-400 text-sm mb-4">Mark a specific student as present in Firebase instantly.</p>
+                    <div class="space-y-4">
+                        <input type="text" id="live-checkin-id"
+                            class="w-full px-4 py-3 bg-slate-900/50 border border-white/10 rounded-xl focus:ring-2 focus:ring-green-500 outline-none text-white placeholder-slate-500 transition-all uppercase"
+                            placeholder="Student Roll No (e.g. 101)">
+                        <button type="button" onclick="app.handleMarkAttendance()"
+                            class="w-full bg-green-600/80 hover:bg-green-500 text-white font-bold py-3.5 rounded-xl transition-colors border border-green-400/30 shadow-[0_0_15px_rgba(34,197,94,0.3)]">
+                            Mark Present
+                        </button>
+                    </div>
                 </div>
 
                 <!-- Syllabus Upload -->

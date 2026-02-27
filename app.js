@@ -89,6 +89,11 @@ class AcademicTrackerApp {
 
     openModal(modalId) {
         document.getElementById(modalId)?.classList.remove('hidden');
+        if (modalId === 'events-modal') {
+            this.loadEvents();
+        } else if (modalId === 'lost-found-modal') {
+            this.loadLostFoundFeed();
+        }
     }
 
     closeModal(modalId) {
@@ -98,24 +103,30 @@ class AcademicTrackerApp {
     // --- Dynamic Data Fetching ---
 
     async loadEvents() {
+        const container = document.getElementById('events-container');
+        container.innerHTML = `<div class="flex justify-center items-center h-full text-slate-400">Loading events...</div>`;
+
         try {
-            if (API_URL === "YOUR_DEPLOYED_WEB_APP_URL") {
-                document.getElementById('events-container').innerHTML = `<div class="text-center text-slate-400 p-4">Please replace API_URL in app.js with your real database/script URL to load events.</div>`;
+            let events = [];
+            if (typeof window.fetchEvents === 'function') {
+                events = await window.fetchEvents();
+            } else {
+                console.warn("fetchEvents not found, falling back to empty list.");
+            }
+
+            if (events.length === 0) {
+                container.innerHTML = `<div class="text-center text-slate-400 p-4">No events found in Firebase. Admin needs to add them!</div>`;
                 return;
             }
 
-            const response = await fetch(`${API_URL}?sheet=Events`);
-            const events = await response.json();
-
-            const container = document.getElementById('events-container');
             container.innerHTML = events.map(ev => `
                 <div class="border-b border-white/10 pb-5 mb-5 last:border-0 last:mb-0">
                     <div class="flex justify-between items-start mb-3">
-                        <h3 class="text-xl font-bold text-white">${ev.Name || 'College Event'}</h3>
+                        <h3 class="text-xl font-bold text-white">${ev.Name || ev.name || 'College Event'}</h3>
                         <span class="bg-purple-500/20 text-purple-300 text-xs px-3 py-1 rounded-full border border-purple-500/30">Event</span>
                     </div>
-                    <p class="text-sm text-slate-400 mb-4"><strong class="text-slate-300">Date:</strong> ${ev.Date || 'TBA'}</p>
-                    <button onclick="alert('${(ev.Rules || '').replace(/'/g, "\\'")}')" 
+                    <p class="text-sm text-slate-400 mb-4"><strong class="text-slate-300">Date:</strong> ${ev.Date || ev.date || 'TBA'}</p>
+                    <button onclick="alert('${(ev.Rules || ev.rules || 'No special rules.').replace(/'/g, "\\'")}')" 
                         class="bg-slate-800/80 hover:bg-slate-700 text-purple-400 px-4 py-2 rounded-lg transition-colors font-medium border border-white/5 text-sm">
                         View Rules
                     </button>
@@ -123,7 +134,7 @@ class AcademicTrackerApp {
             `).join('');
         } catch (error) {
             console.error("Failed to load events:", error);
-            document.getElementById('events-container').innerHTML = `<div class="text-center text-red-400 p-4">Failed to load events. Check console.</div>`;
+            container.innerHTML = `<div class="text-center text-red-400 p-4">Failed to load events. Check console.</div>`;
         }
     }
 
@@ -270,17 +281,23 @@ class AcademicTrackerApp {
     // --- Attendance & Leave Planner Logic ---
 
     async handleMarkAttendance() {
-        if (!this.currentStudentInfo) {
-            alert("No student session found. Please log in.");
+        if (this.currentRole !== 'faculty') {
+            alert("Unauthorized. Only faculty can perform live check-ins.");
             return;
         }
 
-        // Use uid if available (Firebase Auth), fallback to roll for demo
-        const uid = this.currentStudentInfo.uid || this.currentStudentInfo.roll || "anonymous_student";
+        const inputEl = document.getElementById('live-checkin-id');
+        const uid = inputEl ? inputEl.value.trim() : "";
+
+        if (!uid) {
+            alert("Please enter a valid Student Roll Number or ID.");
+            return;
+        }
 
         try {
             if (typeof window.markAttendance === 'function') {
                 await window.markAttendance(uid);
+                if (inputEl) inputEl.value = ''; // clear upon success
             } else {
                 alert("Mark Attendance function is not available on window.");
             }
@@ -485,27 +502,62 @@ class AcademicTrackerApp {
         e.target.reset();
     }
 
-    handleLostFoundSubmit(e) {
+    async loadLostFoundFeed() {
+        const feed = document.getElementById('lf-feed');
+        if (!feed) return;
+        feed.innerHTML = `<div class="text-center text-slate-400 mt-4">Loading missing items...</div>`;
+
+        if (typeof window.fetchLostFoundItems === 'function') {
+            const items = await window.fetchLostFoundItems();
+            if (items.length === 0) {
+                feed.innerHTML = `<div class="text-center text-slate-500 mt-4">No lost or found items reported yet.</div>`;
+                return;
+            }
+
+            feed.innerHTML = items.map(itemObj => {
+                const borderColor = itemObj.type === 'Found' ? 'border-l-emerald-500' : 'border-l-rose-500';
+                const textColor = itemObj.type === 'Found' ? 'text-emerald-400' : 'text-rose-400';
+                const bgColor = itemObj.type === 'Found' ? 'bg-emerald-400/10' : 'bg-rose-400/10';
+
+                // Format relative time if possible, or just standard string
+                let dateStr = "Recently";
+                if (itemObj.timestamp && itemObj.timestamp.toDate) {
+                    dateStr = itemObj.timestamp.toDate().toLocaleDateString();
+                }
+
+                return `
+                    <div class="bg-slate-800/80 p-4 shadow-md rounded-xl border border-white/5 border-l-[4px] ${borderColor} hover:translate-x-1 transition-transform mb-4">
+                        <span class="text-[10px] font-bold ${textColor} uppercase tracking-wider ${bgColor} px-2 py-0.5 rounded-md">${itemObj.type}</span>
+                        <h4 class="font-bold text-white mt-2">${itemObj.item}</h4>
+                        <p class="text-sm text-slate-400 mt-1">${itemObj.desc} (at ${itemObj.location})</p>
+                        <p class="text-xs text-slate-500 mt-2">${dateStr}</p>
+                    </div>
+                `;
+            }).join('');
+        }
+    }
+
+    async handleLostFoundSubmit(e) {
         e.preventDefault();
         const item = document.getElementById('lf-item').value;
         const type = document.getElementById('lf-type').value;
+        const location = document.getElementById('lf-location').value;
+        const desc = document.getElementById('lf-desc').value;
 
-        // Add to DOM feed (Simulation)
-        const feed = document.getElementById('lf-feed');
-        const borderColor = type === 'Found' ? 'border-l-emerald-500' : 'border-l-rose-500';
-        const textColor = type === 'Found' ? 'text-emerald-400' : 'text-rose-400';
-        const bgColor = type === 'Found' ? 'bg-emerald-400/10' : 'bg-rose-400/10';
+        const origText = e.target.querySelector('button[type="submit"]').innerText;
+        e.target.querySelector('button[type="submit"]').innerText = "Submitting...";
 
-        const newCard = document.createElement('div');
-        newCard.className = `bg-slate-800/80 p-4 shadow-md rounded-xl border border-white/5 border-l-[4px] ${borderColor} hover:translate-x-1 transition-transform animate-fade-in`;
-        newCard.innerHTML = `
-            <span class="text-[10px] font-bold ${textColor} uppercase tracking-wider ${bgColor} px-2 py-0.5 rounded-md">${type}</span>
-            <h4 class="font-bold text-white mt-2">${item}</h4>
-            <p class="text-sm text-slate-400 mt-1">Just added</p>
-        `;
-
-        feed.prepend(newCard); // Add to top
-        e.target.reset();
+        if (typeof window.addLostFoundItem === 'function') {
+            const success = await window.addLostFoundItem({ item, type, location, desc });
+            if (success) {
+                alert(`Successfully reported ${item} as ${type}!`);
+                e.target.reset();
+                this.loadLostFoundFeed();
+            } else {
+                alert(`Failed to report. Check console.`);
+            }
+        }
+        e.target.querySelector('button[type="submit"]').innerText = origText;
     }
 
 
