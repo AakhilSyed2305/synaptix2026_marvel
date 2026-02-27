@@ -257,7 +257,7 @@
                         onclick="app.switchAuthRole('faculty')">Faculty</button>
                 </div>
 
-                <form id="login-form" class="space-y-5">
+                <form id="login-form" class="space-y-5" onsubmit="app.handleLogin(event)">
                     <div id="student-login-fields">
                         <div class="grid grid-cols-2 gap-4 mb-4">
                             <div>
