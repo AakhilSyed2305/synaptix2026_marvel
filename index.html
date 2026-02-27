@@ -4,70 +4,662 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Student Attendance System</title>
-    <link rel="stylesheet" href="styles.css">
+    <title>Smart Academic Tracker</title>
+
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    colors: {
+                        brand: {
+                            blue: '#3b82f6',
+                            teal: '#8b5cf6', // using purple/violet for teal
+                            light: '#0f172a' // dark slate
+                        }
+                    }
+                }
+            }
+        }
+    </script>
+
+    <!-- Custom CSS -->
+    <link rel="stylesheet" href="style.css">
+
+    <!-- Firebase SDKs -->
+    <script type="module">
+        import { initializeApp } from "https://www.gstatic.com/firebasejs/10.9.0/firebase-app.js";
+        import { getAuth, signInWithEmailAndPassword } from "https://www.gstatic.com/firebasejs/10.9.0/firebase-auth.js";
+        import { getFirestore } from "https://www.gstatic.com/firebasejs/10.9.0/firebase-firestore.js";
+
+        // REAL FIREBASE CONFIGURATION
+        const firebaseConfig = {
+            apiKey: "AIzaSyA_73E8Gn28ioijpU13GwKw8CUrAIU5uOE",
+            authDomain: "collegeportal-aysh.firebaseapp.com",
+            projectId: "collegeportal-aysh",
+            storageBucket: "collegeportal-aysh.firebasestorage.app",
+            messagingSenderId: "1045487873199",
+            appId: "1:1045487873199:web:61dffd90fc0aa430a0785a",
+            measurementId: "G-SS0BPMLCR7"
+        };
+
+        const app = initializeApp(firebaseConfig);
+        const auth = getAuth(app);
+        const db = getFirestore(app);
+
+        // Export to window for global access in app.js
+        window.firebaseAuth = auth;
+        window.firebaseDb = db;
+        window.signInWithEmailAndPassword = signInWithEmailAndPassword;
+    </script>
+
+    <!-- Custom User Register Script -->
+    <script type="module">
+        import { createUserWithEmailAndPassword } from "https://www.gstatic.com/firebasejs/10.9.0/firebase-auth.js";
+
+        async function register(email, password) {
+            try {
+                // We use window.firebaseAuth because auth is initialized in the previous block
+                const userCredential = await createUserWithEmailAndPassword(window.firebaseAuth, email, password);
+                alert("User Registered");
+            } catch (error) {
+                alert(error.message);
+            }
+        }
+
+        window.register = register;
+    </script>
+
+    <!-- Custom Mark Attendance Script -->
+    <script type="module">
+        import { collection, addDoc } from "https://www.gstatic.com/firebasejs/10.9.0/firebase-firestore.js";
+
+        async function markAttendance(userId, status = "present") {
+            try {
+                // Pass window.firebaseDb directly since db is in the earlier scope
+                await addDoc(collection(window.firebaseDb, "attendance"), {
+                    studentId: userId,
+                    date: new Date(),
+                    status: status
+                });
+                alert(`Attendance Marked as ${status.toUpperCase()}`);
+            } catch (error) {
+                console.error("Error marking attendance: ", error);
+                alert("Failed to mark attendance.");
+            }
+        }
+
+        window.markAttendance = markAttendance;
+    </script>
+
+    <!-- Custom Events & LostFound Script -->
+    <script type="module">
+        import { collection, addDoc, getDocs, query, orderBy, limit, serverTimestamp } from "https://www.gstatic.com/firebasejs/10.9.0/firebase-firestore.js";
+
+        async function addEventToFirebase(eventData) {
+            try {
+                eventData.timestamp = serverTimestamp();
+                await addDoc(collection(window.firebaseDb, "events"), eventData);
+                return true;
+            } catch (error) {
+                console.error("Error adding event:", error);
+                return false;
+            }
+        }
+
+        async function fetchEvents() {
+            try {
+                // Fetch events ordered by date.
+                const q = query(collection(window.firebaseDb, "events"), orderBy("Date", "asc"));
+                const querySnapshot = await getDocs(q);
+                const events = [];
+                querySnapshot.forEach((doc) => {
+                    events.push({ id: doc.id, ...doc.data() });
+                });
+                return events;
+            } catch (error) {
+                console.error("Error fetching events from Firebase:", error);
+                return [];
+            }
+        }
+
+        async function addLostFoundItem(itemData) {
+            try {
+                itemData.timestamp = serverTimestamp();
+                await addDoc(collection(window.firebaseDb, "lost_found"), itemData);
+                return true;
+            } catch (error) {
+                console.error("Error adding lost/found item:", error);
+                return false;
+            }
+        }
+
+        async function fetchLostFoundItems() {
+            try {
+                const q = query(collection(window.firebaseDb, "lost_found"), orderBy("timestamp", "desc"), limit(20));
+                const querySnapshot = await getDocs(q);
+                const items = [];
+                querySnapshot.forEach((doc) => {
+                    items.push({ id: doc.id, ...doc.data() });
+                });
+                return items;
+            } catch (error) {
+                console.error("Error fetching lost/found items:", error);
+                return [];
+            }
+        }
+
+        window.addEventToFirebase = addEventToFirebase;
+        window.fetchEvents = fetchEvents;
+        window.addLostFoundItem = addLostFoundItem;
+        window.fetchLostFoundItems = fetchLostFoundItems;
+    </script>
 </head>
 
-<body>
+<body class="bg-brand-light text-slate-200 font-sans min-h-screen flex flex-col relative overflow-x-hidden">
 
-    <header>
-        <h2>Student Attendance System</h2>
-    </header>
-
-    <div class="container">
-
-        <label>Department:</label>
-        <select id="department">
-            <option>CSE</option>
-            <option>ECE</option>
-            <option>EEE</option>
-            <option>MECH</option>
-        </select>
-
-        <label>Section:</label>
-        <select id="section">
-            <option>A</option>
-            <option>B</option>
-            <option>C</option>
-        </select>
-
-        <label>Period:</label>
-        <select id="period">
-            <option>1</option>
-            <option>2</option>
-            <option>3</option>
-            <option>4</option>
-            <option>5</option>
-        </select>
-
-        <label>Class:</label>
-        <select id="class">
-            <option>Mathematics</option>
-            <option>Programming</option>
-            <option>Electronics</option>
-            <option>Physics</option>
-        </select>
-
-        <button onclick="loadStudents()">Load Students</button>
-
-        <table id="attendanceTable">
-            <thead>
-                <tr>
-                    <th>Roll No</th>
-                    <th>Name</th>
-                    <th>Status</th>
-                </tr>
-            </thead>
-            <tbody id="studentBody"></tbody>
-        </table>
-
-        <button onclick="submitAttendance()" id="submitBtn">Submit Attendance</button>
-
-        <div class="summary" id="summary"></div>
-
+    <!-- Decorative background elements -->
+    <div class="absolute top-0 left-0 w-full h-full overflow-hidden -z-10 pointer-events-none">
+        <div class="absolute top-[-10%] left-[-10%] w-[40%] h-[40%] bg-blue-600/20 rounded-full blur-[120px]"></div>
+        <div class="absolute bottom-[10%] right-[-5%] w-[30%] h-[40%] bg-purple-600/20 rounded-full blur-[100px]"></div>
     </div>
 
-    <script src="script.js"></script>
+    <!-- Header -->
+    <header class="glass-panel text-white shadow-lg sticky top-0 z-50">
+        <div class="container mx-auto px-6 py-4 flex justify-between items-center">
+            <h1 class="text-2xl font-bold tracking-wider cursor-pointer bg-clip-text text-transparent bg-gradient-to-r from-blue-400 to-purple-400"
+                onclick="app.showSection('landing-section')">🏛️ Smart Academic Tracker</h1>
+            <nav id="user-nav" class="hidden">
+                <span id="user-role-display"
+                    class="mr-4 text-sm font-semibold bg-white/10 px-3 py-1 rounded-full border border-white/20 shadow-inner"></span>
+                <button id="logout-btn" class="hover:text-red-400 transition-colors font-medium">Logout</button>
+            </nav>
+        </div>
+    </header>
+
+    <!-- Main Content Area -->
+    <main class="flex-grow container mx-auto px-4 py-8 relative">
+
+        <!-- Landing Page Section -->
+        <section id="landing-section"
+            class="flex flex-col items-center justify-center space-y-16 mt-16 animate-fade-in relative z-10">
+            <div class="text-center max-w-3xl">
+                <h2 class="text-5xl md:text-6xl font-extrabold text-white mb-6 tracking-tight">
+                    Your Academic Life, <br /><span
+                        class="bg-clip-text text-transparent bg-gradient-to-r from-blue-400 via-purple-400 to-pink-400">Simplified.</span>
+                </h2>
+                <p class="text-xl text-slate-400">Access events, report lost items, and manage your attendance
+                    seamlessly in a unified portal.</p>
+            </div>
+
+            <div class="grid grid-cols-1 md:grid-cols-3 gap-8 w-full max-w-6xl">
+
+                <!-- Events Box -->
+                <div onclick="app.openModal('events-modal')"
+                    class="glass-panel rounded-3xl p-8 transform transition-all duration-300 hover:-translate-y-3 hover:shadow-[0_20px_40px_-15px_rgba(139,92,246,0.3)] cursor-pointer border-t-[3px] border-t-purple-500 flex flex-col items-center text-center group">
+                    <div
+                        class="w-20 h-20 bg-purple-500/20 rounded-2xl flex items-center justify-center mb-6 text-purple-400 text-4xl group-hover:scale-110 group-hover:rotate-3 transition-transform duration-300 shadow-inner">
+                        📅</div>
+                    <h3 class="text-2xl font-bold text-slate-100 mb-3">College Events</h3>
+                    <p class="text-slate-400">Discover upcoming festivals, seminars, and workshops.</p>
+                </div>
+
+                <!-- Lost & Found Box -->
+                <div onclick="app.openModal('lost-found-modal')"
+                    class="glass-panel rounded-3xl p-8 transform transition-all duration-300 hover:-translate-y-3 hover:shadow-[0_20px_40px_-15px_rgba(234,179,8,0.3)] cursor-pointer border-t-[3px] border-t-yellow-500 flex flex-col items-center text-center group">
+                    <div
+                        class="w-20 h-20 bg-yellow-500/20 rounded-2xl flex items-center justify-center mb-6 text-yellow-500 text-4xl group-hover:scale-110 group-hover:-rotate-3 transition-transform duration-300 shadow-inner">
+                        🔍</div>
+                    <h3 class="text-2xl font-bold text-slate-100 mb-3">Lost & Found</h3>
+                    <p class="text-slate-400">Report missing items or help others find theirs.</p>
+                </div>
+
+                <!-- Attendance Box -->
+                <div onclick="app.showSection('auth-section')"
+                    class="glass-panel rounded-3xl p-8 transform transition-all duration-300 hover:-translate-y-3 hover:shadow-[0_20px_40px_-15px_rgba(59,130,246,0.3)] cursor-pointer border-t-[3px] border-t-blue-500 flex flex-col items-center text-center group relative overflow-hidden">
+                    <div
+                        class="absolute inset-0 bg-gradient-to-br from-blue-600/10 to-purple-600/10 opacity-0 group-hover:opacity-100 transition-opacity duration-300">
+                    </div>
+                    <div
+                        class="relative z-10 w-20 h-20 bg-blue-500/20 rounded-2xl flex items-center justify-center mb-6 text-blue-400 text-4xl group-hover:scale-110 transition-transform duration-300 shadow-inner">
+                        📊</div>
+                    <h3 class="relative z-10 text-2xl font-bold text-white mb-3">Attendance & Portal</h3>
+                    <p class="relative z-10 text-slate-300">Login to your dashboard for attendance and academic
+                        planning.</p>
+                </div>
+
+            </div>
+        </section>
+
+
+        <!-- Auth Section -->
+        <section id="auth-section"
+            class="hidden flex flex-col items-center justify-center mt-10 relative z-10 animate-fade-in">
+            <div class="glass-panel p-8 rounded-3xl shadow-2xl w-full max-w-md border border-white/10">
+                <div class="flex justify-between items-center mb-8">
+                    <h2
+                        class="text-3xl font-bold bg-clip-text text-transparent bg-gradient-to-r from-blue-400 to-purple-400">
+                        Portal Login</h2>
+                    <button onclick="app.showSection('landing-section')"
+                        class="text-slate-400 hover:text-white transition-colors flex items-center gap-1.5 font-medium bg-white/5 px-3 py-1.5 rounded-lg border border-white/10 hover:bg-white/10 text-sm">
+                        &larr; Back to Home
+                    </button>
+                </div>
+
+                <!-- Role Toggle -->
+                <div class="flex bg-slate-800/50 p-1.5 rounded-xl mb-8 border border-white/5">
+                    <button id="toggle-student"
+                        class="flex-1 py-2.5 rounded-lg font-medium text-sm transition-all shadow-sm bg-blue-500/20 text-blue-400 border border-blue-500/30"
+                        onclick="app.switchAuthRole('student')">Student</button>
+                    <button id="toggle-faculty"
+                        class="flex-1 py-2.5 rounded-lg font-medium text-sm transition-all text-slate-400 hover:text-slate-200"
+                        onclick="app.switchAuthRole('faculty')">Faculty</button>
+                </div>
+
+                <form id="login-form" class="space-y-5" onsubmit="app.handleLogin(event)">
+                    <div id="student-login-fields">
+                        <div class="grid grid-cols-2 gap-4 mb-4">
+                            <div>
+                                <label class="block text-sm font-medium text-slate-300 mb-2">Department</label>
+                                <select id="student-dept"
+                                    class="w-full px-4 py-3 bg-slate-900/50 border border-white/10 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none text-white transition-all appearance-none [&>option]:bg-slate-800">
+                                    <option value="" disabled selected>Select Dept</option>
+                                    <option value="CSE">Computer Science (CSE)</option>
+                                    <option value="ECE">Electronics (ECE)</option>
+                                    <option value="MECH">Mechanical (MECH)</option>
+                                </select>
+                            </div>
+                            <div>
+                                <label class="block text-sm font-medium text-slate-300 mb-2">Roll Number</label>
+                                <input type="text" id="student-roll"
+                                    class="w-full px-4 py-3 bg-slate-900/50 border border-white/10 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none text-white placeholder-slate-500 transition-all uppercase"
+                                    placeholder="e.g., 101">
+                            </div>
+                        </div>
+
+                        <label class="block text-sm font-medium text-slate-300 mb-2">Student Email</label>
+                        <input type="email" id="student-email"
+                            class="w-full px-4 py-3 bg-slate-900/50 border border-white/10 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none text-white placeholder-slate-500 transition-all"
+                            placeholder="student@college.edu">
+                        <label class="block text-sm font-medium text-slate-300 mb-2 mt-4">Password</label>
+                        <input type="password" id="student-pass"
+                            class="w-full px-4 py-3 bg-slate-900/50 border border-white/10 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none text-white placeholder-slate-500 transition-all"
+                            placeholder="••••••••">
+                    </div>
+
+                    <div id="faculty-login-fields" class="hidden">
+                        <label class="block text-sm font-medium text-slate-300 mb-2">Admin / Faculty ID</label>
+                        <input type="text" id="faculty-id"
+                            class="w-full px-4 py-3 bg-slate-900/50 border border-white/10 rounded-xl focus:ring-2 focus:ring-purple-500 focus:border-purple-500 outline-none text-white placeholder-slate-500 mb-5 transition-all"
+                            placeholder="FAC-123">
+                        <label class="block text-sm font-medium text-slate-300 mb-2">Password</label>
+                        <input type="password" id="faculty-pass"
+                            class="w-full px-4 py-3 bg-slate-900/50 border border-white/10 rounded-xl focus:ring-2 focus:ring-purple-500 focus:border-purple-500 outline-none text-white placeholder-slate-500 transition-all"
+                            placeholder="••••••••">
+                    </div>
+
+                    <p id="auth-error"
+                        class="text-red-400 text-sm hidden font-medium text-center bg-red-500/10 py-2 rounded-lg border border-red-500/20">
+                    </p>
+
+                    <div class="flex gap-4 mt-8">
+                        <button type="submit"
+                            class="flex-1 bg-gradient-to-r from-blue-600 to-purple-600 text-white font-bold py-3.5 rounded-xl hover:from-blue-500 hover:to-purple-500 transition-all shadow-[0_0_20px_rgba(59,130,246,0.4)]">Login
+                            to Portal</button>
+                        <button type="button" id="btn-register" onclick="app.handleRegister()"
+                            class="px-8 bg-slate-800 text-slate-300 font-bold py-3.5 rounded-xl hover:bg-slate-700 hover:text-white transition-all border border-white/10">Register</button>
+                    </div>
+                </form>
+                <div
+                    class="mt-6 text-center text-xs text-slate-500 bg-slate-900/30 py-3 rounded-lg border border-white/5">
+                    <p>Student: <span class="text-slate-300">Create a user in Firebase Auth to test</span><br>Faculty
+                        Demo: <span class="text-slate-300">admin (Pass: admin)</span></p>
+                </div>
+            </div>
+        </section>
+
+
+        <section id="student-dashboard" class="hidden space-y-10 animate-fade-in relative z-10">
+            <h2
+                class="text-4xl font-bold bg-clip-text text-transparent bg-gradient-to-r from-blue-400 to-purple-400 border-b border-white/10 pb-4">
+                Student Dashboard</h2>
+
+            <div class="grid grid-cols-1 lg:grid-cols-2 gap-8">
+                <!-- Leave Planner -->
+                <div class="glass-panel rounded-3xl p-8 border-l-[4px] border-l-blue-500">
+                    <h3 class="text-2xl font-bold mb-6 flex items-center gap-3 text-slate-100"><span
+                            class="text-3xl bg-blue-500/20 p-2 rounded-xl text-blue-400">🗓️</span> Leave Planner</h3>
+                    <div class="space-y-6">
+                        <div
+                            class="flex flex-col sm:flex-row justify-between text-sm text-slate-300 bg-slate-900/50 p-4 rounded-xl border border-white/5 gap-2">
+                            <span>Total Classes: <strong id="lbl-total-classes" class="text-white">50</strong></span>
+                            <span>Attended: <strong id="lbl-classes-attended" class="text-white">38</strong></span>
+                            <span>Current: <strong id="lbl-current-att"
+                                    class="text-blue-400 text-base">76.0%</strong></span>
+                        </div>
+
+                        <div>
+                            <label class="block text-sm font-medium text-slate-300 mb-2">Plan leave for how many
+                                days/classes?</label>
+                            <div class="flex gap-3">
+                                <input type="number" id="leave-input" min="1" max="20"
+                                    class="w-full px-4 py-3 bg-slate-900/50 border border-white/10 rounded-xl focus:ring-2 focus:ring-blue-500 outline-none text-white placeholder-slate-500"
+                                    placeholder="e.g., 2">
+                                <button onclick="app.calculateLeave()"
+                                    class="bg-blue-600/80 hover:bg-blue-500 text-white px-8 rounded-xl transition-colors font-semibold border border-blue-400/30 whitespace-nowrap shadow-[0_0_15px_rgba(59,130,246,0.3)]">Calculate</button>
+                            </div>
+                        </div>
+
+                        <div id="leave-result"
+                            class="hidden p-5 rounded-xl mt-6 transition-all border border-white/10 backdrop-blur-md">
+                            <p class="font-semibold text-lg" id="leave-prediction-text"></p>
+                            <p class="text-sm mt-2" id="leave-warning"></p>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Academic Summary -->
+                <div class="glass-panel rounded-3xl p-8 border-l-[4px] border-l-purple-500">
+                    <h3 class="text-2xl font-bold mb-6 flex items-center gap-3 text-slate-100"><span
+                            class="text-3xl bg-purple-500/20 p-2 rounded-xl text-purple-400">🎓</span> Quick Summary
+                    </h3>
+                    <ul class="space-y-4">
+                        <li class="flex justify-between items-center border-b border-white/10 pb-3"><span
+                                class="text-slate-400">Overall Attendance</span> <span
+                                class="font-bold text-green-400 bg-green-400/10 px-3 py-1 rounded-lg border border-green-400/20"
+                                id="lbl-overall-att">76%</span>
+                        </li>
+                        <li class="flex justify-between items-center border-b border-white/10 pb-3"><span
+                                class="text-slate-400">Overall Marks</span> <span
+                                class="font-bold text-blue-400 bg-blue-500/10 px-3 py-1 rounded-lg border border-blue-500/20"
+                                id="lbl-overall-marks">80%</span>
+                        </li>
+                        <li class="flex justify-between items-center border-b border-white/10 pb-3"><span
+                                class="text-slate-400">Missed Classes</span> <span
+                                class="font-bold text-red-400 bg-red-400/10 px-3 py-1 rounded-lg border border-red-400/20">12</span>
+                        </li>
+                        <li class="flex justify-between items-center border-b border-white/10 pb-3"><span
+                                class="text-slate-400">Upcoming Exams</span> <span
+                                class="font-bold text-purple-300 bg-purple-500/10 px-3 py-1 rounded-lg border border-purple-500/20">Next
+                                Week</span></li>
+                    </ul>
+                </div>
+            </div>
+
+            <!-- Subject-Wise Attendance & Marks -->
+            <div class="grid grid-cols-1 gap-8 mt-10">
+                <div class="glass-panel rounded-3xl p-8 border-t-[4px] border-t-emerald-500">
+                    <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-6 gap-4">
+                        <h3 class="text-2xl font-bold flex items-center gap-3 text-slate-100">
+                            <span class="text-3xl bg-emerald-500/20 p-2 rounded-xl text-emerald-400">📊</span> Subject
+                            Performance Tracker
+                        </h3>
+                    </div>
+
+                    <!-- Subject-Wise List -->
+                    <div class="space-y-4" id="subject-performance-list">
+                        <!-- Populated by JS -->
+                    </div>
+                </div>
+            </div>
+
+            <!-- Catch-Up Bot / Timeline -->
+            <div class="glass-panel rounded-3xl p-8 mt-10">
+                <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-8 gap-4">
+                    <div>
+                        <h3
+                            class="text-3xl font-bold bg-clip-text text-transparent bg-gradient-to-r from-purple-400 to-pink-400 flex items-center gap-3">
+                            <span
+                                class="text-3xl bg-pink-500/20 p-2 rounded-xl text-pink-400 drop-shadow-md hidden sm:block">🤖</span>
+                            Catch-Up Bot Roadmap
+                        </h3>
+                        <p class="text-slate-400 mt-2 text-lg">Personalized syllabus breakdown for classes you missed.
+                        </p>
+                    </div>
+                    <button onclick="app.generateCatchupTimeline()"
+                        class="bg-gradient-to-r from-purple-600 to-indigo-600 text-white font-bold px-6 py-3 rounded-xl hover:from-purple-500 hover:to-indigo-500 transition-all shadow-[0_0_20px_rgba(168,85,247,0.4)] whitespace-nowrap">Refresh
+                        Plan</button>
+                </div>
+
+                <div class="timeline relative border-l-[3px] border-white/10 ml-2 sm:ml-6 pl-6 sm:pl-10 space-y-10 mt-12"
+                    id="catchup-timeline">
+                    <!-- Timeline items generated by JS -->
+                    <div
+                        class="text-center text-slate-500 py-8 bg-slate-900/30 rounded-xl border border-dashed border-slate-700">
+                        Click "Refresh Plan" to analyze missed dates against syllabus.</div>
+                </div>
+            </div>
+
+        </section>
+
+
+        <!-- Faculty Dashboard -->
+        <section id="faculty-dashboard" class="hidden space-y-10 animate-fade-in relative z-10">
+            <h2
+                class="text-4xl font-bold bg-clip-text text-transparent bg-gradient-to-r from-teal-400 to-emerald-400 border-b border-white/10 pb-4">
+                Faculty Dashboard</h2>
+
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-8">
+                <!-- Bulk Attendance -->
+                <div class="glass-panel rounded-3xl p-8 border-t-[4px] border-t-blue-500">
+                    <h3 class="text-2xl font-bold mb-6 flex items-center gap-3 text-slate-100"><span
+                            class="text-3xl bg-blue-500/20 p-2 rounded-xl text-blue-400">📝</span> Bulk Attendance
+                        Update</h3>
+                    <form id="attendance-form" class="space-y-5" onsubmit="app.handleBulkAttendance(event)">
+                        <div>
+                            <label class="block text-sm font-medium text-slate-300 mb-2">Select Subject</label>
+                            <select
+                                class="w-full px-4 py-3 bg-slate-900/50 border border-white/10 rounded-xl focus:ring-2 focus:ring-blue-500 outline-none text-white transition-all appearance-none [&>option]:bg-slate-800">
+                                <option>Data Structures (CS201)</option>
+                                <option>Web Development (CS202)</option>
+                            </select>
+                        </div>
+                        <div>
+                            <label class="block text-sm font-medium text-slate-300 mb-2">Date</label>
+                            <input type="date" id="att-date"
+                                class="w-full px-4 py-3 bg-slate-900/50 border border-white/10 rounded-xl focus:ring-2 focus:ring-blue-500 outline-none text-white transition-all [&::-webkit-calendar-picker-indicator]:filter [&::-webkit-calendar-picker-indicator]:invert"
+                                required>
+                        </div>
+                        <div>
+                            <label class="block text-sm font-medium text-slate-300 mb-2">Absent Roll Numbers (Comma
+                                separated)</label>
+                            <textarea id="absent-rolls"
+                                class="w-full px-4 py-3 bg-slate-900/50 border border-white/10 rounded-xl focus:ring-2 focus:ring-blue-500 outline-none h-32 text-white placeholder-slate-500 transition-all resize-none"
+                                placeholder="e.g., 101, 105, 112"></textarea>
+                        </div>
+                        <button type="submit"
+                            class="w-full bg-blue-600/80 hover:bg-blue-500 text-white font-bold py-3.5 rounded-xl transition-colors border border-blue-400/30 shadow-[0_0_15px_rgba(59,130,246,0.3)] mt-2">Update
+                            Database</button>
+                    </form>
+                </div>
+
+                <!-- Single Student Check-In (Firebase) -->
+                <div class="glass-panel rounded-3xl p-8 border-t-[4px] border-t-green-500 md:col-span-2 lg:col-span-1">
+                    <h3 class="text-2xl font-bold mb-6 flex items-center gap-3 text-slate-100"><span
+                            class="text-3xl bg-green-500/20 p-2 rounded-xl text-green-400">✅</span> Class Roster</h3>
+                    <p class="text-slate-400 text-sm mb-4">Check off students who are present to instantly update
+                        Firebase.</p>
+                    <div class="space-y-4">
+                        <div id="class-roster-list" class="max-h-64 overflow-y-auto pr-2 space-y-2">
+                            <!-- Populated by JS -->
+                        </div>
+                        <button type="button" onclick="app.handleSubmitRoster()" id="submit-roster-btn"
+                            class="w-full bg-green-600/80 hover:bg-green-500 text-white font-bold py-3.5 rounded-xl transition-colors border border-green-400/30 shadow-[0_0_15px_rgba(34,197,94,0.3)] mt-4 flex justify-center items-center gap-2">
+                            <span>Submit Attendance</span>
+                        </button>
+                    </div>
+                </div>
+
+                <!-- Create College Event -->
+                <div class="glass-panel rounded-3xl p-8 border-t-[4px] border-t-purple-500">
+                    <h3 class="text-2xl font-bold mb-6 flex items-center gap-3 text-slate-100"><span
+                            class="text-3xl bg-purple-500/20 p-2 rounded-xl text-purple-400">🎉</span> Add New Event
+                    </h3>
+                    <form id="create-event-form" class="space-y-5" onsubmit="app.handleAddEventSubmit(event)">
+                        <div>
+                            <label class="block text-sm font-medium text-slate-300 mb-2">Event Title</label>
+                            <input type="text" id="ev-title"
+                                class="w-full px-4 py-3 bg-slate-900/50 border border-white/10 rounded-xl focus:ring-2 focus:ring-purple-500 outline-none text-white placeholder-slate-500 transition-all"
+                                placeholder="e.g., Tech Symposium 2024" required>
+                        </div>
+                        <div>
+                            <label class="block text-sm font-medium text-slate-300 mb-2">Event Date</label>
+                            <input type="date" id="ev-date"
+                                class="w-full px-4 py-3 bg-slate-900/50 border border-white/10 rounded-xl focus:ring-2 focus:ring-purple-500 outline-none text-white transition-all [&::-webkit-calendar-picker-indicator]:filter [&::-webkit-calendar-picker-indicator]:invert"
+                                required>
+                        </div>
+                        <div>
+                            <label class="block text-sm font-medium text-slate-300 mb-2">Rules / Description</label>
+                            <textarea id="ev-rules"
+                                class="w-full px-4 py-3 bg-slate-900/50 border border-white/10 rounded-xl focus:ring-2 focus:ring-purple-500 outline-none text-white placeholder-slate-500 text-sm h-28 resize-none transition-all"
+                                placeholder="Details about the event..."></textarea>
+                        </div>
+                        <button type="submit"
+                            class="w-full bg-purple-600/80 hover:bg-purple-500 text-white font-bold py-3.5 rounded-xl transition-colors border border-purple-400/30 shadow-[0_0_15px_rgba(168,85,247,0.3)] mt-2">Create
+                            Event</button>
+                    </form>
+                </div>
+
+                <!-- Syllabus Upload -->
+                <div class="glass-panel rounded-3xl p-8 border-t-[4px] border-t-teal-500 md:col-span-2 lg:col-span-1">
+                    <h3 class="text-2xl font-bold mb-6 flex items-center gap-3 text-slate-100"><span
+                            class="text-3xl bg-teal-500/20 p-2 rounded-xl text-teal-400">📚</span> Upload Syllabus Topic
+                    </h3>
+                    <form id="syllabus-form" class="space-y-5" onsubmit="app.handleSyllabusUpload(event)">
+                        <div>
+                            <label class="block text-sm font-medium text-slate-300 mb-2">Subject</label>
+                            <select id="syl-subject"
+                                class="w-full px-4 py-3 bg-slate-900/50 border border-white/10 rounded-xl focus:ring-2 focus:ring-teal-500 outline-none text-white transition-all appearance-none [&>option]:bg-slate-800">
+                                <option value="Web Development (CS202)">Web Development (CS202)</option>
+                            </select>
+                        </div>
+                        <div class="grid grid-cols-2 gap-4">
+                            <div>
+                                <label class="block text-sm font-medium text-slate-300 mb-2">Date Covered</label>
+                                <input type="date" id="syl-date"
+                                    class="w-full px-4 py-3 bg-slate-900/50 border border-white/10 rounded-xl focus:ring-2 focus:ring-teal-500 outline-none text-white transition-all [&::-webkit-calendar-picker-indicator]:filter [&::-webkit-calendar-picker-indicator]:invert"
+                                    required>
+                            </div>
+                            <div>
+                                <label class="block text-sm font-medium text-slate-300 mb-2">Topic Name</label>
+                                <input type="text" id="syl-topic"
+                                    class="w-full px-4 py-3 bg-slate-900/50 border border-white/10 rounded-xl focus:ring-2 focus:ring-teal-500 outline-none text-white placeholder-slate-500 transition-all"
+                                    placeholder="e.g., React Hooks" required>
+                            </div>
+                        </div>
+                        <div>
+                            <label class="block text-sm font-medium text-slate-300 mb-2">Resource / Video Link</label>
+                            <input type="url" id="syl-link"
+                                class="w-full px-4 py-3 bg-slate-900/50 border border-white/10 rounded-xl focus:ring-2 focus:ring-teal-500 outline-none text-white placeholder-slate-500 transition-all"
+                                placeholder="https://youtube.com/...">
+                        </div>
+                        <div>
+                            <label class="block text-sm font-medium text-slate-300 mb-2">Key Notes URL / Text</label>
+                            <input type="text" id="syl-notes"
+                                class="w-full px-4 py-3 bg-slate-900/50 border border-white/10 rounded-xl focus:ring-2 focus:ring-teal-500 outline-none text-white placeholder-slate-500 transition-all"
+                                placeholder="Link to PDF or quick notes">
+                        </div>
+                        <button type="submit"
+                            class="w-full bg-teal-600/80 hover:bg-teal-500 text-white font-bold py-3.5 rounded-xl transition-colors border border-teal-400/30 shadow-[0_0_15px_rgba(20,184,166,0.3)] mt-2">Publish
+                            to Feed</button>
+                    </form>
+                </div>
+            </div>
+        </section>
+
+
+        <!-- Modals -->
+
+        <!-- Events Modal -->
+        <div id="events-modal"
+            class="hidden fixed inset-0 bg-slate-900/80 z-50 flex items-center justify-center backdrop-blur-md p-4 animate-fade-in">
+            <div
+                class="glass-panel rounded-3xl w-full max-w-2xl overflow-hidden flex flex-col max-h-[90vh] border border-white/10 shadow-2xl">
+                <div
+                    class="bg-gradient-to-r from-purple-600/50 to-pink-600/50 p-6 text-white flex justify-between items-center border-b border-white/10">
+                    <h2 class="text-2xl font-bold flex items-center gap-2">🎉 College Events</h2>
+                    <button onclick="app.closeModal('events-modal')"
+                        class="text-white/70 hover:text-white text-3xl leading-none transition-colors">&times;</button>
+                </div>
+                <div class="p-6 overflow-y-auto min-h-[200px]" id="events-container">
+                    <!-- Events will be loaded here dynamically by JS -->
+                    <div class="flex justify-center items-center h-full text-slate-400">
+                        Loading events...
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Lost and Found Modal -->
+        <div id="lost-found-modal"
+            class="hidden fixed inset-0 bg-slate-900/80 z-50 flex items-center justify-center backdrop-blur-md p-4 animate-fade-in">
+            <div
+                class="glass-panel rounded-3xl w-full max-w-4xl overflow-hidden flex flex-col max-h-[90vh] border border-white/10 shadow-2xl">
+                <div
+                    class="bg-gradient-to-r from-yellow-600/50 to-orange-600/50 p-6 text-white flex justify-between items-center border-b border-white/10">
+                    <h2 class="text-2xl font-bold flex items-center gap-2">🔍 Lost & Found</h2>
+                    <button onclick="app.closeModal('lost-found-modal')"
+                        class="text-white/70 hover:text-white text-3xl leading-none transition-colors">&times;</button>
+                </div>
+                <div class="p-6 overflow-y-auto flex flex-col md:flex-row gap-8">
+                    <!-- Report Form -->
+                    <div class="flex-1 space-y-5">
+                        <h3 class="font-bold text-white border-b border-white/10 pb-3 text-lg">Report an Item</h3>
+                        <form id="lf-form" onsubmit="app.handleLostFoundSubmit(event)">
+                            <div class="space-y-4">
+                                <input type="text" id="lf-item"
+                                    class="w-full px-4 py-3 bg-slate-900/50 border border-white/10 rounded-xl focus:ring-2 focus:ring-yellow-500 outline-none text-white placeholder-slate-500 text-sm transition-all"
+                                    placeholder="Item Name (e.g., Blue Bottle)" required>
+                                <select id="lf-type"
+                                    class="w-full px-4 py-3 bg-slate-900/50 border border-white/10 rounded-xl focus:ring-2 focus:ring-yellow-500 outline-none text-white text-sm transition-all appearance-none [&>option]:bg-slate-800">
+                                    <option value="Lost">I Lost This</option>
+                                    <option value="Found">I Found This</option>
+                                </select>
+                                <input type="text" id="lf-location"
+                                    class="w-full px-4 py-3 bg-slate-900/50 border border-white/10 rounded-xl focus:ring-2 focus:ring-yellow-500 outline-none text-white placeholder-slate-500 text-sm transition-all"
+                                    placeholder="Location (e.g., Lab 3)" required>
+                                <textarea id="lf-desc"
+                                    class="w-full px-4 py-3 bg-slate-900/50 border border-white/10 rounded-xl focus:ring-2 focus:ring-yellow-500 outline-none text-white placeholder-slate-500 text-sm h-28 resize-none transition-all"
+                                    placeholder="Short description..." required></textarea>
+                                <button type="submit"
+                                    class="w-full bg-gradient-to-r from-yellow-500 to-orange-500 text-white font-bold py-3.5 rounded-xl hover:from-yellow-400 hover:to-orange-400 transition-all shadow-[0_0_15px_rgba(234,179,8,0.3)] border border-yellow-400/30">Submit
+                                    Report</button>
+                            </div>
+                        </form>
+                    </div>
+                    <!-- Feed -->
+                    <div class="flex-1 bg-slate-900/40 p-6 rounded-2xl border border-white/5 shadow-inner">
+                        <h3 class="font-bold text-white border-b border-white/10 pb-3 mb-6 text-lg">Recent Feed</h3>
+                        <div class="space-y-4 pr-1" id="lf-feed" style="max-height: 400px; overflow-y: auto;">
+                            <div
+                                class="bg-slate-800/80 p-4 shadow-md rounded-xl border border-white/5 border-l-[4px] border-l-emerald-500 hover:translate-x-1 transition-transform">
+                                <span
+                                    class="text-[10px] font-bold text-emerald-400 uppercase tracking-wider bg-emerald-400/10 px-2 py-0.5 rounded-md">Found</span>
+                                <h4 class="font-bold text-white mt-2">Car Keys</h4>
+                                <p class="text-sm text-slate-400 mt-1">Found near cafeteria entrance.</p>
+                            </div>
+                            <div
+                                class="bg-slate-800/80 p-4 shadow-md rounded-xl border border-white/5 border-l-[4px] border-l-rose-500 hover:translate-x-1 transition-transform">
+                                <span
+                                    class="text-[10px] font-bold text-rose-400 uppercase tracking-wider bg-rose-400/10 px-2 py-0.5 rounded-md">Lost</span>
+                                <h4 class="font-bold text-white mt-2">Scientific Calculator</h4>
+                                <p class="text-sm text-slate-400 mt-1">Lost in Room 104 during morning session.</p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+    </main>
+
+    <footer
+        class="bg-slate-900/80 border-t border-white/10 py-6 text-center text-slate-500 text-sm mt-auto backdrop-blur-md relative z-10 w-full">
+        &copy; 2026 Smart Academic Tracker. Built with Premium Theme.
+    </footer>
+
+    <script src="app.js"></script>
 </body>
 
 </html>
