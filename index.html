@@ -97,6 +97,17 @@
     <script type="module">
         import { collection, addDoc, getDocs, query, orderBy, limit, serverTimestamp } from "https://www.gstatic.com/firebasejs/10.9.0/firebase-firestore.js";
 
+        async function addEventToFirebase(eventData) {
+            try {
+                eventData.timestamp = serverTimestamp();
+                await addDoc(collection(window.firebaseDb, "events"), eventData);
+                return true;
+            } catch (error) {
+                console.error("Error adding event:", error);
+                return false;
+            }
+        }
+
         async function fetchEvents() {
             try {
                 // Fetch events ordered by date.
@@ -139,6 +150,7 @@
             }
         }
 
+        window.addEventToFirebase = addEventToFirebase;
         window.fetchEvents = fetchEvents;
         window.addLostFoundItem = addLostFoundItem;
         window.fetchLostFoundItems = fetchLostFoundItems;
@@ -478,8 +490,38 @@
                     </div>
                 </div>
 
+                <!-- Create College Event -->
+                <div class="glass-panel rounded-3xl p-8 border-t-[4px] border-t-purple-500">
+                    <h3 class="text-2xl font-bold mb-6 flex items-center gap-3 text-slate-100"><span
+                            class="text-3xl bg-purple-500/20 p-2 rounded-xl text-purple-400">🎉</span> Add New Event
+                    </h3>
+                    <form id="create-event-form" class="space-y-5" onsubmit="app.handleAddEventSubmit(event)">
+                        <div>
+                            <label class="block text-sm font-medium text-slate-300 mb-2">Event Title</label>
+                            <input type="text" id="ev-title"
+                                class="w-full px-4 py-3 bg-slate-900/50 border border-white/10 rounded-xl focus:ring-2 focus:ring-purple-500 outline-none text-white placeholder-slate-500 transition-all"
+                                placeholder="e.g., Tech Symposium 2024" required>
+                        </div>
+                        <div>
+                            <label class="block text-sm font-medium text-slate-300 mb-2">Event Date</label>
+                            <input type="date" id="ev-date"
+                                class="w-full px-4 py-3 bg-slate-900/50 border border-white/10 rounded-xl focus:ring-2 focus:ring-purple-500 outline-none text-white transition-all [&::-webkit-calendar-picker-indicator]:filter [&::-webkit-calendar-picker-indicator]:invert"
+                                required>
+                        </div>
+                        <div>
+                            <label class="block text-sm font-medium text-slate-300 mb-2">Rules / Description</label>
+                            <textarea id="ev-rules"
+                                class="w-full px-4 py-3 bg-slate-900/50 border border-white/10 rounded-xl focus:ring-2 focus:ring-purple-500 outline-none text-white placeholder-slate-500 text-sm h-28 resize-none transition-all"
+                                placeholder="Details about the event..."></textarea>
+                        </div>
+                        <button type="submit"
+                            class="w-full bg-purple-600/80 hover:bg-purple-500 text-white font-bold py-3.5 rounded-xl transition-colors border border-purple-400/30 shadow-[0_0_15px_rgba(168,85,247,0.3)] mt-2">Create
+                            Event</button>
+                    </form>
+                </div>
+
                 <!-- Syllabus Upload -->
-                <div class="glass-panel rounded-3xl p-8 border-t-[4px] border-t-teal-500">
+                <div class="glass-panel rounded-3xl p-8 border-t-[4px] border-t-teal-500 md:col-span-2 lg:col-span-1">
                     <h3 class="text-2xl font-bold mb-6 flex items-center gap-3 text-slate-100"><span
                             class="text-3xl bg-teal-500/20 p-2 rounded-xl text-teal-400">📚</span> Upload Syllabus Topic
                     </h3>

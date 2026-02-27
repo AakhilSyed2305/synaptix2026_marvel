@@ -480,6 +480,36 @@ class AcademicTrackerApp {
 
     // --- Faculty Forms Logic ---
 
+    async handleAddEventSubmit(e) {
+        e.preventDefault();
+        const title = document.getElementById('ev-title').value;
+        const date = document.getElementById('ev-date').value;
+        const rules = document.getElementById('ev-rules').value;
+
+        const submitBtn = e.target.querySelector('button[type="submit"]');
+        const origText = submitBtn.innerText;
+        submitBtn.innerText = "Creating...";
+
+        if (typeof window.addEventToFirebase === 'function') {
+            // Match the keys expected by the loadEvents query
+            const success = await window.addEventToFirebase({
+                Name: title,
+                Date: date, // Keep raw YYYY-MM-DD for correct DB sorting
+                Rules: rules
+            });
+
+            if (success) {
+                alert(`Successfully created event: ${title}!`);
+                e.target.reset();
+            } else {
+                alert(`Failed to create event. Check console.`);
+            }
+        } else {
+            alert("Firebase function not found.");
+        }
+        submitBtn.innerText = origText;
+    }
+
     handleBulkAttendance(e) {
         e.preventDefault();
         const date = document.getElementById('att-date').value;
