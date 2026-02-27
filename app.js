@@ -1,5 +1,7 @@
 // Smart Academic Tracker - Core Application Logic
 
+const API_URL = "https://script.google.com/macros/s/AKfycbwYOmqyV5flipneUvawLdNnb3FNPf5pVMzzFZzTNQNWb2HiAnlF88BeqJh_fXiFu8gWig/exec";
+
 class AcademicTrackerApp {
     constructor() {
         this.currentRole = 'student';
@@ -13,6 +15,8 @@ class AcademicTrackerApp {
             this.setupEventListeners();
             // Mock Data for demonstration
             this.setupMockData();
+            // Fetch dynamic events
+            this.loadEvents();
             // Set initial state
             this.showSection('landing-section');
         });
@@ -91,6 +95,38 @@ class AcademicTrackerApp {
         document.getElementById(modalId)?.classList.add('hidden');
     }
 
+    // --- Dynamic Data Fetching ---
+
+    async loadEvents() {
+        try {
+            if (API_URL === "YOUR_DEPLOYED_WEB_APP_URL") {
+                document.getElementById('events-container').innerHTML = `<div class="text-center text-slate-400 p-4">Please replace API_URL in app.js with your real database/script URL to load events.</div>`;
+                return;
+            }
+
+            const response = await fetch(`${API_URL}?sheet=Events`);
+            const events = await response.json();
+
+            const container = document.getElementById('events-container');
+            container.innerHTML = events.map(ev => `
+                <div class="border-b border-white/10 pb-5 mb-5 last:border-0 last:mb-0">
+                    <div class="flex justify-between items-start mb-3">
+                        <h3 class="text-xl font-bold text-white">${ev.Name || 'College Event'}</h3>
+                        <span class="bg-purple-500/20 text-purple-300 text-xs px-3 py-1 rounded-full border border-purple-500/30">Event</span>
+                    </div>
+                    <p class="text-sm text-slate-400 mb-4"><strong class="text-slate-300">Date:</strong> ${ev.Date || 'TBA'}</p>
+                    <button onclick="alert('${(ev.Rules || '').replace(/'/g, "\\'")}')" 
+                        class="bg-slate-800/80 hover:bg-slate-700 text-purple-400 px-4 py-2 rounded-lg transition-colors font-medium border border-white/5 text-sm">
+                        View Rules
+                    </button>
+                </div>
+            `).join('');
+        } catch (error) {
+            console.error("Failed to load events:", error);
+            document.getElementById('events-container').innerHTML = `<div class="text-center text-red-400 p-4">Failed to load events. Check console.</div>`;
+        }
+    }
+
     // --- Authentication ---
 
     switchAuthRole(role) {
@@ -99,6 +135,7 @@ class AcademicTrackerApp {
         const btnFaculty = document.getElementById('toggle-faculty');
         const studentFields = document.getElementById('student-login-fields');
         const facultyFields = document.getElementById('faculty-login-fields');
+        const btnRegister = document.getElementById('btn-register');
 
         if (role === 'student') {
             // UI Toggle
@@ -112,6 +149,7 @@ class AcademicTrackerApp {
 
             studentFields.classList.remove('hidden');
             facultyFields.classList.add('hidden');
+            if (btnRegister) btnRegister.classList.remove('hidden');
         } else {
             // UI Toggle
             btnFaculty.classList.replace('text-slate-400', 'text-blue-400');
@@ -124,45 +162,82 @@ class AcademicTrackerApp {
 
             facultyFields.classList.remove('hidden');
             studentFields.classList.add('hidden');
+            if (btnRegister) btnRegister.classList.add('hidden');
         }
     }
 
-    handleLogin(e) {
+    async handleRegister() {
+        const errEl = document.getElementById('auth-error');
+        errEl.classList.add('hidden');
+
+        if (this.currentRole === 'student') {
+            const email = document.getElementById('student-email').value;
+            const password = document.getElementById('student-pass').value;
+
+            if (!email || !password) {
+                errEl.textContent = "Please provide an Email and Password to register.";
+                errEl.classList.remove('hidden');
+                return;
+            }
+
+            try {
+                if (typeof window.register === 'function') {
+                    await window.register(email, password);
+                } else {
+                    errEl.textContent = "Registration is currently unavailable (Script Error).";
+                    errEl.classList.remove('hidden');
+                }
+            } catch (error) {
+                console.error("Registration caught error", error);
+            }
+        }
+    }
+
+    async handleLogin(e) {
         e.preventDefault();
 
-        // In a real app, you would use Firebase Auth here:
-        // firebaseAuth.signInWithEmailAndPassword(...)
-
-        // For demonstration, mock login flow:
-        document.getElementById('auth-error').classList.add('hidden');
-
-        let success = false;
+        const errEl = document.getElementById('auth-error');
+        errEl.classList.add('hidden');
 
         if (this.currentRole === 'student') {
             const dept = document.getElementById('student-dept').value;
             const roll = document.getElementById('student-roll').value;
             const email = document.getElementById('student-email').value;
-            const otp = document.getElementById('student-otp').value;
+            const password = document.getElementById('student-pass').value;
 
-            if (dept && roll && email && otp === '1234') {
-                success = true;
+            if (!dept || !roll || !email || !password) {
+                errEl.textContent = "Please fill all fields (Dept, Roll No, Email, Password).";
+                errEl.classList.remove('hidden');
+                return;
+            }
+
+            try {
+                // Call the user's custom global login function attached to window
+                if (typeof window.login === 'function') {
+                    await window.login(email, password);
+                } else {
+                    // Fallback to direct firebase auth if the script isn't loaded
+                    const auth = window.firebaseAuth;
+                    const userCredential = await window.signInWithEmailAndPassword(auth, email, password);
+                }
+
                 // Store student info for later use
                 this.currentStudentInfo = { dept, roll, email };
+
+                this.loginSuccess();
+            } catch (error) {
+                errEl.textContent = `Login failed: ${error.message}`;
+                errEl.classList.remove('hidden');
             }
         } else {
             const id = document.getElementById('faculty-id').value;
             const pass = document.getElementById('faculty-pass').value;
-            if (id === 'admin' && pass === 'admin') success = true;
-        }
-
-        if (success) {
-            this.loginSuccess();
-        } else {
-            const errEl = document.getElementById('auth-error');
-            errEl.textContent = this.currentRole === 'student'
-                ? "Please fill all fields (Dept, Roll No, Email) and use OTP 1234."
-                : "Invalid credentials. Try demo accounts.";
-            errEl.classList.remove('hidden');
+            if (id === 'admin' && pass === 'admin') {
+                this.loginSuccess();
+            } else {
+                errEl.textContent = "Invalid credentials. Try demo accounts.";
+                errEl.classList.remove('hidden');
+            }
         }
     }
 
@@ -192,7 +267,27 @@ class AcademicTrackerApp {
         };
     }
 
-    // --- Leave Planner Logic ---
+    // --- Attendance & Leave Planner Logic ---
+
+    async handleMarkAttendance() {
+        if (!this.currentStudentInfo) {
+            alert("No student session found. Please log in.");
+            return;
+        }
+
+        // Use uid if available (Firebase Auth), fallback to roll for demo
+        const uid = this.currentStudentInfo.uid || this.currentStudentInfo.roll || "anonymous_student";
+
+        try {
+            if (typeof window.markAttendance === 'function') {
+                await window.markAttendance(uid);
+            } else {
+                alert("Mark Attendance function is not available on window.");
+            }
+        } catch (error) {
+            console.error("Caught error calling markAttendance:", error);
+        }
+    }
 
     updateAttendanceLabels() {
         // Calculate Totals from Subjects
@@ -221,6 +316,11 @@ class AcademicTrackerApp {
             lblAtt.className = overallAttPercent >= 75
                 ? "font-bold text-green-400 bg-green-400/10 px-3 py-1 rounded-lg border border-green-400/20"
                 : "font-bold text-red-400 bg-red-400/10 px-3 py-1 rounded-lg border border-red-400/20";
+        }
+
+        const lblCurrentAtt = document.getElementById('lbl-current-att');
+        if (lblCurrentAtt) {
+            lblCurrentAtt.textContent = `${overallAttPercent}%`;
         }
 
         const lblMarks = document.getElementById('lbl-overall-marks');
@@ -282,8 +382,13 @@ class AcademicTrackerApp {
         }
 
         const X = parseInt(leaveDaysInput);
-        const attended = this.studentRecord.classesAttended;
-        const total = this.studentRecord.totalClassesHosted;
+
+        let attended = 0;
+        let total = 0;
+        this.studentRecord.subjects.forEach(sub => {
+            attended += sub.attendedClasses;
+            total += sub.totalClasses;
+        });
 
         // Formula: (attended / (totalClasses + X)) * 100
         const newTotal = total + X;

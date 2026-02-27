@@ -30,17 +30,18 @@
     <!-- Firebase SDKs -->
     <script type="module">
         import { initializeApp } from "https://www.gstatic.com/firebasejs/10.9.0/firebase-app.js";
-        import { getAuth } from "https://www.gstatic.com/firebasejs/10.9.0/firebase-auth.js";
+        import { getAuth, signInWithEmailAndPassword } from "https://www.gstatic.com/firebasejs/10.9.0/firebase-auth.js";
         import { getFirestore } from "https://www.gstatic.com/firebasejs/10.9.0/firebase-firestore.js";
 
-        // REPLACE WITH YOUR FIREBASE CONFIG
+        // REAL FIREBASE CONFIGURATION
         const firebaseConfig = {
-            apiKey: "YOUR_API_KEY",
-            authDomain: "YOUR_PROJECT_ID.firebaseapp.com",
-            projectId: "YOUR_PROJECT_ID",
-            storageBucket: "YOUR_PROJECT_ID.appspot.com",
-            messagingSenderId: "YOUR_MESSAGING_SENDER_ID",
-            appId: "YOUR_APP_ID"
+            apiKey: "AIzaSyA_73E8Gn28ioijpU13GwKw8CUrAIU5uOE",
+            authDomain: "collegeportal-aysh.firebaseapp.com",
+            projectId: "collegeportal-aysh",
+            storageBucket: "collegeportal-aysh.firebasestorage.app",
+            messagingSenderId: "1045487873199",
+            appId: "1:1045487873199:web:61dffd90fc0aa430a0785a",
+            measurementId: "G-SS0BPMLCR7"
         };
 
         const app = initializeApp(firebaseConfig);
@@ -50,6 +51,46 @@
         // Export to window for global access in app.js
         window.firebaseAuth = auth;
         window.firebaseDb = db;
+        window.signInWithEmailAndPassword = signInWithEmailAndPassword;
+    </script>
+
+    <!-- Custom User Register Script -->
+    <script type="module">
+        import { createUserWithEmailAndPassword } from "https://www.gstatic.com/firebasejs/10.9.0/firebase-auth.js";
+
+        async function register(email, password) {
+            try {
+                // We use window.firebaseAuth because auth is initialized in the previous block
+                const userCredential = await createUserWithEmailAndPassword(window.firebaseAuth, email, password);
+                alert("User Registered");
+            } catch (error) {
+                alert(error.message);
+            }
+        }
+
+        window.register = register;
+    </script>
+
+    <!-- Custom Mark Attendance Script -->
+    <script type="module">
+        import { collection, addDoc } from "https://www.gstatic.com/firebasejs/10.9.0/firebase-firestore.js";
+
+        async function markAttendance(userId) {
+            try {
+                // Pass window.firebaseDb directly since db is in the earlier scope
+                await addDoc(collection(window.firebaseDb, "attendance"), {
+                    studentId: userId,
+                    date: new Date(),
+                    status: "present"
+                });
+                alert("Attendance Marked");
+            } catch (error) {
+                console.error("Error marking attendance: ", error);
+                alert("Failed to mark attendance.");
+            }
+        }
+
+        window.markAttendance = markAttendance;
     </script>
 </head>
 
@@ -178,17 +219,10 @@
                         <input type="email" id="student-email"
                             class="w-full px-4 py-3 bg-slate-900/50 border border-white/10 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none text-white placeholder-slate-500 transition-all"
                             placeholder="student@college.edu">
-                        <!-- Mock OTP logic for demonstration -->
-                        <div class="mt-4 flex gap-3 relative">
-                            <input type="text" id="student-otp"
-                                class="w-full px-4 py-3 bg-slate-900/50 border border-white/10 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none text-white placeholder-slate-500 transition-all flex-grow"
-                                placeholder="Enter OTP">
-                            <button type="button" id="send-otp-btn"
-                                class="bg-slate-700/50 text-white px-5 rounded-xl hover:bg-slate-600 transition-colors text-sm font-medium border border-white/10 whitespace-nowrap hidden sm:block">Send
-                                OTP</button>
-                        </div>
-                        <p id="otp-message" class="text-xs text-green-400 mt-2 hidden">OTP '1234' sent to your email
-                            (Mocked).</p>
+                        <label class="block text-sm font-medium text-slate-300 mb-2 mt-4">Password</label>
+                        <input type="password" id="student-pass"
+                            class="w-full px-4 py-3 bg-slate-900/50 border border-white/10 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none text-white placeholder-slate-500 transition-all"
+                            placeholder="••••••••">
                     </div>
 
                     <div id="faculty-login-fields" class="hidden">
@@ -206,14 +240,18 @@
                         class="text-red-400 text-sm hidden font-medium text-center bg-red-500/10 py-2 rounded-lg border border-red-500/20">
                     </p>
 
-                    <button type="submit"
-                        class="w-full bg-gradient-to-r from-blue-600 to-purple-600 text-white font-bold py-3.5 rounded-xl hover:from-blue-500 hover:to-purple-500 transition-all shadow-[0_0_20px_rgba(59,130,246,0.4)] mt-8">Login
-                        to Portal</button>
+                    <div class="flex gap-4 mt-8">
+                        <button type="submit"
+                            class="flex-1 bg-gradient-to-r from-blue-600 to-purple-600 text-white font-bold py-3.5 rounded-xl hover:from-blue-500 hover:to-purple-500 transition-all shadow-[0_0_20px_rgba(59,130,246,0.4)]">Login
+                            to Portal</button>
+                        <button type="button" id="btn-register" onclick="app.handleRegister()"
+                            class="px-8 bg-slate-800 text-slate-300 font-bold py-3.5 rounded-xl hover:bg-slate-700 hover:text-white transition-all border border-white/10">Register</button>
+                    </div>
                 </form>
                 <div
                     class="mt-6 text-center text-xs text-slate-500 bg-slate-900/30 py-3 rounded-lg border border-white/5">
-                    <p>Demo accounts: <br>Student: <span class="text-slate-300">test@college.edu (OTP:
-                            1234)</span><br>Faculty: <span class="text-slate-300">admin (Pass: admin)</span></p>
+                    <p>Student: <span class="text-slate-300">Create a user in Firebase Auth to test</span><br>Faculty
+                        Demo: <span class="text-slate-300">admin (Pass: admin)</span></p>
                 </div>
             </div>
         </section>
@@ -221,9 +259,17 @@
 
         <!-- Student Dashboard -->
         <section id="student-dashboard" class="hidden space-y-10 animate-fade-in relative z-10">
-            <h2
-                class="text-4xl font-bold bg-clip-text text-transparent bg-gradient-to-r from-blue-400 to-purple-400 border-b border-white/10 pb-4">
-                Student Dashboard</h2>
+            <div
+                class="flex flex-col sm:flex-row justify-between items-start sm:items-center border-b border-white/10 pb-4">
+                <h2
+                    class="text-4xl font-bold bg-clip-text text-transparent bg-gradient-to-r from-blue-400 to-purple-400">
+                    Student Dashboard
+                </h2>
+                <button type="button" onclick="app.handleMarkAttendance()"
+                    class="mt-4 sm:mt-0 bg-green-500/20 text-green-400 hover:bg-green-500 hover:text-white border border-green-500/30 px-6 py-2.5 rounded-xl font-bold transition-colors shadow-[0_0_15px_rgba(34,197,94,0.3)]">
+                    ✅ Check-In Today
+                </button>
+            </div>
 
             <div class="grid grid-cols-1 lg:grid-cols-2 gap-8">
                 <!-- Leave Planner -->
@@ -235,7 +281,8 @@
                             class="flex flex-col sm:flex-row justify-between text-sm text-slate-300 bg-slate-900/50 p-4 rounded-xl border border-white/5 gap-2">
                             <span>Total Classes: <strong id="lbl-total-classes" class="text-white">50</strong></span>
                             <span>Attended: <strong id="lbl-classes-attended" class="text-white">38</strong></span>
-                            <span>Current: <strong class="text-blue-400 text-base">76.0%</strong></span>
+                            <span>Current: <strong id="lbl-current-att"
+                                    class="text-blue-400 text-base">76.0%</strong></span>
                         </div>
 
                         <div>
@@ -434,37 +481,10 @@
                     <button onclick="app.closeModal('events-modal')"
                         class="text-white/70 hover:text-white text-3xl leading-none transition-colors">&times;</button>
                 </div>
-                <div class="p-6 overflow-y-auto space-y-6">
-                    <!-- Event Item -->
-                    <div class="border-b border-white/10 pb-5">
-                        <div class="flex justify-between items-start mb-3">
-                            <h3 class="text-xl font-bold text-white">Hackathon 2026</h3>
-                            <span
-                                class="bg-purple-500/20 text-purple-300 text-xs px-3 py-1 rounded-full border border-purple-500/30">Upcoming</span>
-                        </div>
-                        <p class="text-sm text-slate-400 mb-3"><strong class="text-slate-300">Date:</strong> Oct 15-16,
-                            2026 | <strong class="text-slate-300">Venue:</strong> Main Auditorium</p>
-                        <p class="text-slate-300 mb-4 tracking-wide leading-relaxed">48-hour coding marathon. Build
-                            solutions for smart campuses.</p>
-                        <div
-                            class="bg-slate-900/50 p-4 rounded-xl text-sm text-slate-300 border border-white/5 border-l-[3px] border-l-purple-500">
-                            <strong>Rules:</strong> Teams of up to 4. Projects must be open source.
-                        </div>
-                        <button
-                            class="mt-4 text-purple-400 font-semibold hover:text-purple-300 transition-colors flex items-center gap-1">Register
-                            Now &rarr;</button>
-                    </div>
-                    <!-- Event Item -->
-                    <div class="pt-2">
-                        <div class="flex justify-between items-start mb-3">
-                            <h3 class="text-xl font-bold text-slate-300">Guest Lecture: AI in Healthcare</h3>
-                            <span
-                                class="bg-slate-800 text-slate-500 text-xs px-3 py-1 rounded-full border border-slate-700">Past</span>
-                        </div>
-                        <p class="text-sm text-slate-500 mb-2"><strong class="text-slate-400">Date:</strong> Sep 20,
-                            2026</p>
-                        <p class="text-slate-400 leading-relaxed tracking-wide">Insights from industry leaders on
-                            leveraging AI.</p>
+                <div class="p-6 overflow-y-auto min-h-[200px]" id="events-container">
+                    <!-- Events will be loaded here dynamically by JS -->
+                    <div class="flex justify-center items-center h-full text-slate-400">
+                        Loading events...
                     </div>
                 </div>
             </div>
