@@ -44,25 +44,43 @@ class AcademicTrackerApp {
             missedDates: ['2026-09-03', '2026-09-10'], // They missed State/Props and Routing
             subjects: [
                 {
-                    id: "CS202",
-                    name: 'Web Development (CS202)',
-                    totalClasses: 30,
-                    attendedClasses: 22,
+                    id: "CS201",
+                    name: 'Data Structures (CS201)',
+                    totalClasses: 20,
+                    attendedClasses: 18,
                     marksObtained: 42,
                     marksTotal: 50,
                     grade: "A"
                 },
                 {
-                    id: "CS201",
-                    name: 'Data Structures (CS201)',
+                    id: "CS202",
+                    name: 'Web Development (CS202)',
                     totalClasses: 20,
-                    attendedClasses: 16,
+                    attendedClasses: 14,
                     marksObtained: 38,
                     marksTotal: 50,
                     grade: "B+"
+                },
+                {
+                    id: "CS203",
+                    name: 'Operating Systems (CS203)',
+                    totalClasses: 10,
+                    attendedClasses: 6,
+                    marksObtained: 15,
+                    marksTotal: 25,
+                    grade: "C"
                 }
             ]
         };
+
+        // Mock Data: Class Roster for Faculty Attendance
+        this.classRoster = [
+            { id: "S001", name: "Aarav Patel", roll: "101" },
+            { id: "S002", name: "Priya Sharma", roll: "102" },
+            { id: "S003", name: "Rohan Kumar", roll: "103" },
+            { id: "S004", name: "Ananya Singh", roll: "104" },
+            { id: "S005", name: "Vikram Reddy", roll: "105" }
+        ];
     }
 
     // --- Navigation & UI ---
@@ -270,6 +288,7 @@ class AcademicTrackerApp {
             roleDisplay.textContent = 'Faculty / Admin';
             roleDisplay.className = 'mr-4 text-sm font-semibold text-teal-300 bg-teal-500/20 px-3 py-1 rounded-full border border-teal-500/30';
             this.showSection('faculty-dashboard');
+            this.loadClassRoster();
         }
 
         // Setup logout inside login
@@ -280,30 +299,103 @@ class AcademicTrackerApp {
 
     // --- Attendance & Leave Planner Logic ---
 
-    async handleMarkAttendance() {
+    loadClassRoster() {
+        const rosterContainer = document.getElementById('class-roster-list');
+        if (!rosterContainer) return;
+
+        rosterContainer.innerHTML = ''; // Clear existing list
+
+        this.classRoster.forEach((student, index) => {
+            const itemHTML = `
+                <label class="flex items-center justify-between p-3 rounded-xl bg-slate-800/50 border border-white/5 hover:bg-slate-800 transition-colors cursor-pointer group">
+                    <div class="flex items-center gap-4">
+                        <div class="relative flex items-center">
+                            <input type="checkbox" id="roster-chk-${index}" value="${student.roll}" onchange="app.updateAbsentRollsField()" class="peer w-5 h-5 appearance-none border-2 border-slate-500 rounded text-green-500 transition-all checked:bg-green-500 checked:border-green-500">
+                            <span class="absolute text-slate-900 opacity-0 peer-checked:opacity-100 top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 pointer-events-none">
+                                <svg xmlns="http://www.w3.org/2000/svg" class="h-3.5 w-3.5" viewBox="0 0 20 20" fill="currentColor">
+                                    <path fill-rule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clip-rule="evenodd" />
+                                </svg>
+                            </span>
+                        </div>
+                        <div>
+                            <p class="text-white font-semibold group-hover:text-green-400 transition-colors">${student.name}</p>
+                            <p class="text-xs text-slate-400">Roll: ${student.roll}</p>
+                        </div>
+                    </div>
+                    <span class="text-xs font-bold text-slate-500 uppercase tracking-wide opacity-0 peer-checked:opacity-100 group-hover:opacity-100 transition-opacity">Present</span>
+                </label>
+            `;
+            rosterContainer.insertAdjacentHTML('beforeend', itemHTML);
+        });
+
+        // Initialize the absent rolls textarea on load
+        this.updateAbsentRollsField();
+    }
+
+    updateAbsentRollsField() {
+        const absentRolls = [];
+        this.classRoster.forEach((student, index) => {
+            const checkbox = document.getElementById(`roster-chk-${index}`);
+            // If the checkbox exists and is NOT checked, the student is absent
+            if (checkbox && !checkbox.checked) {
+                absentRolls.push(student.roll);
+            }
+        });
+
+        const textarea = document.getElementById('absent-rolls');
+        if (textarea) {
+            textarea.value = absentRolls.join(', ');
+        }
+    }
+
+    async handleSubmitRoster() {
         if (this.currentRole !== 'faculty') {
             alert("Unauthorized. Only faculty can perform live check-ins.");
             return;
         }
 
-        const inputEl = document.getElementById('live-checkin-id');
-        const uid = inputEl ? inputEl.value.trim() : "";
+        const btn = document.getElementById('submit-roster-btn');
+        const origContent = btn.innerHTML;
+        btn.innerHTML = `<span>Saving...</span>`;
+        btn.disabled = true;
 
-        if (!uid) {
-            alert("Please enter a valid Student Roll Number or ID.");
+        if (typeof window.markAttendance !== 'function') {
+            alert("Firebase Mark Attendance function not connected.");
+            btn.innerHTML = origContent;
+            btn.disabled = false;
             return;
         }
 
-        try {
-            if (typeof window.markAttendance === 'function') {
-                await window.markAttendance(uid);
-                if (inputEl) inputEl.value = ''; // clear upon success
-            } else {
-                alert("Mark Attendance function is not available on window.");
+        let successCount = 0;
+        let failCount = 0;
+
+        for (let i = 0; i < this.classRoster.length; i++) {
+            const student = this.classRoster[i];
+            const checkbox = document.getElementById(`roster-chk-${i}`);
+            const status = checkbox && checkbox.checked ? 'present' : 'absent';
+
+            try {
+                // Wait briefly between writes so we don't hammer the mock/firebase randomly
+                await new Promise(r => setTimeout(r, 100));
+                await window.markAttendance(student.roll, status);
+                successCount++;
+            } catch (err) {
+                console.error(`Failed to mark ${student.roll}:`, err);
+                failCount++;
             }
-        } catch (error) {
-            console.error("Caught error calling markAttendance:", error);
         }
+
+        btn.innerHTML = `<span class="text-white">✅ Saved ${successCount} Records</span>`;
+        if (failCount > 0) {
+            alert(`Saved ${successCount} students. Failed on ${failCount}. Check console.`);
+        } else {
+            alert(`Class Roster successfully saved to Firebase.`);
+        }
+
+        setTimeout(() => {
+            btn.innerHTML = origContent;
+            btn.disabled = false;
+        }, 2000);
     }
 
     updateAttendanceLabels() {
@@ -370,15 +462,18 @@ class AcademicTrackerApp {
                         </p>
                     </div>
                     
-                    <div class="flex gap-4 w-full md:w-auto mt-2 md:mt-0">
-                        <div class="flex-1 md:flex-none text-center px-4 py-2 rounded-xl border border-white/10 bg-slate-900/50">
-                            <p class="text-[10px] text-slate-500 uppercase font-bold tracking-wider mb-1">Attendance</p>
-                            <p class="font-bold ${attColor} bg-transparent px-0 py-0 text-xl border-none">${attPercentage}%</p>
+                    <div class="flex flex-col md:flex-row gap-4 w-full md:w-auto mt-4 md:mt-0">
+                        <div class="flex-1 text-center px-4 py-3 rounded-xl border border-white/10 bg-slate-900/50 flex flex-col justify-center">
+                            <p class="text-[11px] text-slate-500 uppercase font-bold tracking-wider mb-1">Attendance</p>
+                            <p class="font-bold ${attColor} text-2xl drop-shadow-md">${attPercentage}%</p>
                         </div>
-                        <div class="flex-1 md:flex-none text-center px-4 py-2 rounded-xl border border-white/10 bg-slate-900/50 relative overflow-hidden group">
-                            <div class="absolute inset-0 bg-blue-500/10 opacity-0 group-hover:opacity-100 transition-opacity"></div>
-                            <p class="relative z-10 text-[10px] text-slate-500 uppercase font-bold tracking-wider mb-1">Marks</p>
-                            <p class="relative z-10 font-bold text-blue-400 text-xl">${subject.marksObtained} <span class="text-xs text-slate-500">/ ${subject.marksTotal}</span></p>
+                        <div class="flex-1 text-center px-6 py-3 rounded-xl border border-blue-500/30 bg-blue-500/10 relative overflow-hidden group shadow-[0_0_15px_rgba(59,130,246,0.15)] flex flex-col justify-center">
+                            <div class="absolute inset-0 bg-blue-500/20 opacity-0 group-hover:opacity-100 transition-opacity"></div>
+                            <p class="relative z-10 text-[11px] text-blue-300 uppercase font-bold tracking-wider mb-1">Subject Marks</p>
+                            <div class="relative z-10 flex items-baseline justify-center gap-1">
+                                <span class="font-black text-white text-3xl drop-shadow-[0_0_8px_rgba(255,255,255,0.5)]">${subject.marksObtained}</span>
+                                <span class="text-sm text-blue-200 font-bold">/ ${subject.marksTotal}</span>
+                            </div>
                         </div>
                     </div>
                 </div>
@@ -502,7 +597,7 @@ class AcademicTrackerApp {
                 alert(`Successfully created event: ${title}!`);
                 e.target.reset();
             } else {
-                alert(`Failed to create event. Check console.`);
+                alert(`Failed to create event. This is usually due to Firebase permission rules. Check console.`);
             }
         } else {
             alert("Firebase function not found.");
@@ -584,8 +679,10 @@ class AcademicTrackerApp {
                 e.target.reset();
                 this.loadLostFoundFeed();
             } else {
-                alert(`Failed to report. Check console.`);
+                alert(`Failed to report. This is usually due to Firebase permission rules. Check console.`);
             }
+        } else {
+            alert(`Firebase functions are not loaded.`);
         }
         e.target.querySelector('button[type="submit"]').innerText = origText;
     }
