@@ -1,0 +1,180 @@
+/* Custom styles for Smart Academic Tracker - Premium Theme */
+
+body {
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+    background: #0f172a;
+    /* Tailwind slate-900 */
+    color: #f8fafc;
+    /* Tailwind slate-50 */
+}
+
+/* Animations */
+@keyframes fadeIn {
+    from {
+        opacity: 0;
+        transform: translateY(10px);
+    }
+
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+.animate-fade-in {
+    animation: fadeIn 0.4s ease-out forwards;
+}
+
+/* Hide scrollbar for feeds and modals but allow scroll */
+.overflow-y-auto::-webkit-scrollbar {
+    width: 6px;
+}
+
+.overflow-y-auto::-webkit-scrollbar-track {
+    background: #f1f1f1;
+    border-radius: 4px;
+}
+
+.overflow-y-auto::-webkit-scrollbar-thumb {
+    background: #c1c1c1;
+    border-radius: 4px;
+}
+
+.overflow-y-auto::-webkit-scrollbar-thumb:hover {
+    background: #a8a8a8;
+}
+
+
+/* --- Catch-Up Bot Timeline CSS - Premium --- */
+
+.timeline {
+    position: relative;
+    padding-left: 2rem;
+    margin-left: 1rem;
+    border-left: 4px solid rgba(255, 255, 255, 0.1);
+}
+
+/* Timeline Item Container */
+.timeline-item {
+    position: relative;
+    margin-bottom: 2rem;
+    background: rgba(30, 41, 59, 0.7);
+    /* slate-800 with opacity */
+    backdrop-filter: blur(12px);
+    -webkit-backdrop-filter: blur(12px);
+    border: 1px solid rgba(255, 255, 255, 0.05);
+    border-radius: 1rem;
+    padding: 1.5rem;
+    box-shadow: 0 4px 30px rgba(0, 0, 0, 0.5);
+    border-left: 4px solid #8b5cf6;
+    /* Tailwind violet-500 */
+    transition: transform 0.3s ease, box-shadow 0.3s ease, border-color 0.3s ease;
+}
+
+.timeline-item:hover {
+    transform: translateX(8px) translateY(-2px);
+    box-shadow: 0 10px 40px rgba(139, 92, 246, 0.2);
+    border-left-color: #a855f7;
+    /* Tailwind purple-500 */
+}
+
+/* Timeline Marker (Circle on the line) */
+.timeline-marker {
+    position: absolute;
+    left: -2.8rem;
+    /* Center on the border */
+    top: 1.5rem;
+    width: 1.5rem;
+    height: 1.5rem;
+    background: linear-gradient(135deg, #8b5cf6, #3b82f6);
+    border: 4px solid #0f172a;
+    border-radius: 50%;
+    z-index: 10;
+    box-shadow: 0 0 10px rgba(139, 92, 246, 0.5);
+}
+
+/* Timeline Content Typography */
+.timeline-date {
+    display: inline-block;
+    padding: 0.25rem 0.75rem;
+    background: rgba(139, 92, 246, 0.15);
+    /* violet-with-opacity */
+    color: #c4b5fd;
+    /* Tailwind violet-300 */
+    border: 1px solid rgba(139, 92, 246, 0.3);
+    border-radius: 9999px;
+    font-size: 0.75rem;
+    font-weight: 600;
+    margin-bottom: 0.5rem;
+    letter-spacing: 0.05em;
+}
+
+.timeline-title {
+    font-size: 1.25rem;
+    font-weight: 700;
+    color: #f8fafc;
+    /* Tailwind slate-50 */
+    margin-bottom: 0.5rem;
+    text-shadow: 0 2px 4px rgba(0, 0, 0, 0.5);
+}
+
+/* Action Buttons inside Timeline */
+.timeline-actions {
+    display: flex;
+    gap: 0.5rem;
+    margin-top: 1rem;
+}
+
+.btn-video {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.25rem;
+    background: linear-gradient(135deg, #ef4444, #b91c1c);
+    color: white;
+    padding: 0.5rem 1rem;
+    border-radius: 0.5rem;
+    font-size: 0.875rem;
+    font-weight: 600;
+    text-decoration: none;
+    transition: all 0.2s;
+    box-shadow: 0 4px 15px rgba(239, 68, 68, 0.3);
+    border: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.btn-video:hover {
+    transform: translateY(-1px);
+    box-shadow: 0 6px 20px rgba(239, 68, 68, 0.5);
+    background: linear-gradient(135deg, #f87171, #dc2626);
+}
+
+.btn-notes {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.25rem;
+    background: linear-gradient(135deg, #3b82f6, #1d4ed8);
+    color: white;
+    padding: 0.5rem 1rem;
+    border-radius: 0.5rem;
+    font-size: 0.875rem;
+    font-weight: 600;
+    text-decoration: none;
+    transition: all 0.2s;
+    box-shadow: 0 4px 15px rgba(59, 130, 246, 0.3);
+    border: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.btn-notes:hover {
+    transform: translateY(-1px);
+    box-shadow: 0 6px 20px rgba(59, 130, 246, 0.5);
+    background: linear-gradient(135deg, #60a5fa, #2563eb);
+}
+
+/* Glass Panels */
+.glass-panel {
+    background: rgba(30, 41, 59, 0.6);
+    backdrop-filter: blur(16px);
+    -webkit-backdrop-filter: blur(16px);
+    border: 1px solid rgba(255, 255, 255, 0.05);
+    box-shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.3);
+}
